@@ -581,13 +581,14 @@ class SDE(object):
         for var in self.global_vars:
             self._gpu_sym[var] = self.mod.get_global(var)[0]
 
-        samples = numpy.uint32(self.options.samples)
+        samples = numpy.array(self.options.samples,numpy.uint32)
         cuda.memcpy_htod(self._gpu_sym['samples'], samples)
 
         # Single-valued system parameters
         for par in self.parser.par_single:
             self._sim_sym[par] = self.options.__dict__[par]
-            cuda.memcpy_htod(self._gpu_sym[par], self.float(self.options.__dict__[par]))
+            cuda.memcpy_htod(self._gpu_sym[par], numpy.array(self.options.__dict__[par],self.float))
+
 
     def _init_rng(self):
         # Initialize the RNG seeds.
@@ -765,7 +766,7 @@ class SDE(object):
                 period = 2.0 * math.pi / self._sim_sym[self.freq_var]
             else:
                 period = 1.0
-            self.dt = self.float(period / self.options.spp)
+            self.dt = numpy.array( (period / self.options.spp),self.float)
             cuda.memcpy_htod(self._gpu_sym['dt'], self.dt)
             self._dprint("Setting 'dt' = %f" % self.dt)
 
@@ -775,7 +776,7 @@ class SDE(object):
                 subs[Symbol(k)] = v
 
             for name, value in self.const_local_vars.iteritems():
-                val = self.float(value.subs(subs))
+                val = numpy.array( value.subs(subs), self.float)
                 self._dprint("Setting '%s' = %f" % (name, val))
                 cuda.memcpy_htod(self._gpu_sym[name], val)
 
@@ -797,7 +798,7 @@ class SDE(object):
             for val in self.options.__dict__[par]:
                 self._sim_sym[par] = self.float(val)
                 self._dprint("Setting '%s' = %f" % (par, self._sim_sym[par]))
-                cuda.memcpy_htod(self._gpu_sym[par], self.float(val))
+                cuda.memcpy_htod(self._gpu_sym[par], numpy.array(val, self.float) )
                 self._run_nested(range_pars[1:])
 
     def _restore_state(self, period):
